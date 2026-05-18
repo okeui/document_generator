@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧公文產生器 - ChatGPT-Style 簽辦助理</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- 核心外部與資料庫庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="templates.js"></script>
+</head>
+<body>
+
+    <!-- 應用程式大版面 -->
+    <div id="app-layout">
+        
+        <!-- ==========================================
+             左側欄 (Sidebar)
+             ========================================== -->
+        <aside id="sidebar" role="navigation" aria-label="導覽列">
+            <!-- 頂部功能區 -->
+            <div class="sidebar-header">
+                <button class="new-chat-btn" id="new-chat-btn" title="開啟新的公文簽辦對話">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    新建簽辦對話
+                </button>
+                <button class="toggle-sidebar-btn" id="hide-sidebar-btn" title="收合側邊欄">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                </button>
+            </div>
+
+            <!-- 對話歷史紀錄 -->
+            <nav class="chat-history-container" aria-label="歷史對話">
+                <div class="chat-history-title">對話清單</div>
+                <div id="chat-list-items">
+                    <!-- 對話項目動態生成 -->
+                </div>
+            </nav>
+
+            <!-- 側欄底部導覽與設定 -->
+            <footer class="sidebar-footer">
+                <button class="sidebar-footer-btn" id="open-training-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+                    永久歷史公文庫
+                </button>
+                <button class="sidebar-footer-btn" id="open-settings-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    金鑰與系統設定
+                </button>
+            </footer>
+        </aside>
+
+        <!-- 浮動展開按鈕 (側邊欄收合時顯示) -->
+        <button class="floating-sidebar-toggle" id="show-sidebar-btn" title="展開側邊欄">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+        </button>
+
+        <!-- ==========================================
+             中間對話視窗 (Main Chat)
+             ========================================== -->
+        <main id="main-container">
+            <!-- 頂部 Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <div class="header-title-container">
+                        <h2 class="header-title" id="active-chat-title">載入中...</h2>
+                        <span class="header-subtitle">智慧對話公文簽辦助理</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <!-- 切換右側 A4 面版按鈕 -->
+                    <button class="menu-toggle-btn" id="toggle-preview-btn" title="切換顯示公文預覽編輯器">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- 對話內容區 -->
+            <div id="messages-log" role="log" aria-live="polite">
+                <!-- 對話泡泡動態生成 -->
+            </div>
+
+            <!-- 底部輸入與上傳區 -->
+            <div class="chat-bottom-area">
+                <!-- 當次單次上傳檔案卡片 -->
+                <div id="session-file-chips">
+                    <!-- 檔案晶片動態生成 -->
+                </div>
+                
+                <!-- 輸入控制項 -->
+                <div class="input-panel-wrapper">
+                    <textarea class="input-textarea" id="chat-input" placeholder="請輸入本次來文大綱（例如：環保署來函要求落實減碳...）或使用左側附件按鈕上傳公文檔案..." aria-label="公文提示與指令輸入框"></textarea>
+                    
+                    <div class="input-actions-bar">
+                        <div class="actions-left">
+                            <!-- 單次檔案上傳按鈕 -->
+                            <button class="action-icon-btn" id="upload-file-trigger" title="上傳單次簽辦參考檔案（來文/附件）">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                            </button>
+                            <input type="file" id="chat-file-input" style="display: none;" accept=".txt,.doc,.docx,.pdf">
+                            
+                            <!-- 快速生成提示 -->
+                            <button class="action-icon-btn" id="quick-gen-btn" title="一鍵快速撰寫公文">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                            </button>
+                        </div>
+                        <button class="submit-btn" id="send-msg-btn">
+                            <span>生成公文</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="disclaimer-text">智慧公文助理可能會生成格式誤差，送出前請在右側編輯器務必核對公文細節。</div>
+            </div>
+        </main>
+
+        <!-- ==========================================
+             右側欄 - A4 公文即時編輯與預覽 (A4 Previewer)
+             ========================================== -->
+        <aside id="preview-sidebar" aria-label="公文預覽編輯區">
+            <!-- 預覽欄 Header & 工具列 -->
+            <div class="preview-header">
+                <div class="preview-title-area">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <h3>公文草稿 A4 即時預覽</h3>
+                </div>
+                <div class="preview-actions">
+                    <button class="preview-action-pill" id="copy-doc-btn" title="複製公文內文">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        複製
+                    </button>
+                    <button class="preview-action-pill" id="download-word-btn" title="下載為 Word 檔">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        Word
+                    </button>
+                    <button class="preview-action-pill" id="download-doc-btn" title="下載為 PDF 檔">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        PDF
+                    </button>
+                    <button class="preview-action-pill primary" id="print-doc-btn" title="列印或另存PDF">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        列印
+                    </button>
+                </div>
+            </div>
+
+            <!-- A4 紙張與編輯器 -->
+            <div class="preview-body">
+                <div class="a4-sheet" id="a4-sheet-view">
+                    <!-- 動態渲染標準公文格式 -->
+                    <div class="a4-sheet-empty" id="a4-empty-state">
+                        <div class="empty-sheet-icon">✍️</div>
+                        <p>目前尚無公文草稿<br><small>請在聊天室上傳來文或輸入指令，系統將在此即時繪製標準 A4 公文。</small></p>
+                    </div>
+                    <div id="a4-content-wrapper" style="display: none;">
+                        <div class="gov-doc-header">簽</div>
+                        <div class="gov-doc-meta">
+                            <div class="gov-doc-meta-item">
+                                <span class="gov-doc-meta-label">機關單位：</span>
+                                <span class="gov-doc-meta-value" id="doc-view-dept" contenteditable="true">秘書室</span>
+                            </div>
+                            <div class="gov-doc-meta-item">
+                                <span class="gov-doc-meta-label">發文字號：</span>
+                                <span class="gov-doc-meta-value" id="doc-view-num" contenteditable="true">1150001001</span>
+                            </div>
+                            <div class="gov-doc-meta-item">
+                                <span class="gov-doc-meta-label">簽辦日期：</span>
+                                <span class="gov-doc-meta-value" id="doc-view-date" contenteditable="true">中華民國115年5月18日</span>
+                            </div>
+                            <div class="gov-doc-meta-item">
+                                <span class="gov-doc-meta-label">密等速別：</span>
+                                <span class="gov-doc-meta-value" id="doc-view-security" contenteditable="true">普通 / 普通</span>
+                            </div>
+                        </div>
+                        <div class="gov-doc-body">
+                            <div>
+                                <div class="gov-doc-section-title">【主旨】</div>
+                                <div class="gov-doc-section-content" id="doc-view-subject" contenteditable="true"></div>
+                            </div>
+                            <div>
+                                <div class="gov-doc-section-title">【說明】</div>
+                                <div class="gov-doc-section-content" id="doc-view-explanation" contenteditable="true"></div>
+                            </div>
+                            <div>
+                                <div class="gov-doc-section-title">【擬辦】</div>
+                                <div class="gov-doc-section-content" id="doc-view-proposal" contenteditable="true"></div>
+                            </div>
+                        </div>
+                        <div class="gov-doc-signoffs">
+                            <div class="gov-doc-stamp-box">
+                                <span>承辦人</span>
+                                <span style="font-size: 9px; margin-top:2px;">(已簽章)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- ==========================================
+         彈出式視窗：永久歷史公文訓練資料庫 (Training Library)
+         ========================================== -->
+    <div class="modal-overlay" id="training-modal" role="dialog" aria-modal="true" aria-labelledby="training-modal-title">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h2 id="training-modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    永久歷史公文庫 (AI 訓練資料庫)
+                </h2>
+                <button class="modal-close-btn" id="close-training-btn" title="關閉視窗">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="training-db-layout">
+                    <!-- 上傳區與表單 -->
+                    <div class="add-template-panel">
+                        <h4 class="add-template-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            新增歷史簽辦公文範本 (用於 Few-Shot 機器學習)
+                        </h4>
+                        <div class="form-group">
+                            <label class="form-label" for="tpl-title">範本名稱或分類</label>
+                            <input type="text" class="form-input" id="tpl-title" placeholder="例如：114年度採購資訊系統簽辦範本">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="tpl-doc-type">公文類型</label>
+                            <select class="form-input" id="tpl-doc-type">
+                                <option value="簽">簽</option>
+                                <option value="函">函</option>
+                                <option value="便簽">便簽</option>
+                                <option value="便箋">便箋</option>
+                                <option value="開會通知單">開會通知單</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="tpl-incoming">1. 來文內容 (對應問題/輸入)</label>
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                <button class="preview-action-pill" id="upload-tpl-incoming-pdf-btn" type="button" style="padding: 6px 12px; font-size: 11px;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    由 PDF 匯入來文
+                                </button>
+                                <span id="tpl-incoming-pdf-status" class="form-tip" style="margin-top:0; align-self:center;"></span>
+                            </div>
+                            <input type="file" id="tpl-incoming-pdf-file" style="display: none;" accept=".pdf">
+                            <textarea class="form-textarea" id="tpl-incoming" placeholder="請貼上當初來文的內容，或點擊上方按鈕從 PDF 檔案匯入..." style="min-height: 80px;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="tpl-draft">2. 對應簽辦結果 (對應標準答案)</label>
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                <button class="preview-action-pill" id="upload-tpl-draft-pdf-btn" type="button" style="padding: 6px 12px; font-size: 11px;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    由 PDF 匯入公文稿
+                                </button>
+                                <span id="tpl-draft-pdf-status" class="form-tip" style="margin-top:0; align-self:center;"></span>
+                            </div>
+                            <input type="file" id="tpl-draft-pdf-file" style="display: none;" accept=".pdf">
+                            <textarea class="form-textarea" id="tpl-draft" placeholder="請貼上最終簽核通過的「主旨、說明、擬辦」完整公文內容，或點擊上方按鈕從 PDF 檔案匯入..." style="min-height: 120px;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">3. 檔案附件上傳 (支援多個檔案)</label>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <button class="preview-action-pill" id="tpl-upload-attachments-btn" type="button" style="width: fit-content; padding: 6px 12px;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                                    選擇附件檔案...
+                                </button>
+                                <input type="file" id="tpl-attachment-file-input" style="display: none;" accept=".pdf,.odf,.ods,.xlsx,.png,.jpeg,.jpg" multiple>
+                                <div id="tpl-attachment-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;"></div>
+                            </div>
+                            <div class="form-tip">支援上傳 pdf, odf, ods, xlsx, png, jpeg 等檔案類型。</div>
+                        </div>
+                        <div class="form-group" style="display:none;">
+                            <label class="form-label" for="tpl-attachments">附件說明描述 (相容文字)</label>
+                            <input type="text" class="form-input" id="tpl-attachments" placeholder="例如：來文影本乙份、經費明細清單。">
+                        </div>
+                        <button class="submit-btn" id="save-tpl-btn" style="width: 100%; justify-content: center; background: var(--color-secondary); margin-top: 15px;">
+                            儲存歷史範本至訓練庫
+                        </button>
+                    </div>
+
+                    <!-- 歷史範本列表 -->
+                    <div>
+                        <div class="chat-history-title" style="padding-left:0; margin-bottom: 8px;">已匯入之歷史公文範本 (目前有 <span id="tpl-count">0</span> 筆)</div>
+                        <div class="template-list-container" id="tpl-list-items">
+                            <!-- 歷史範本項目動態生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="preview-action-pill" id="close-training-footer-btn">關閉關聯</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         彈出式視窗：系統設定與 API 金鑰 (Settings)
+         ========================================== -->
+    <div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+        <div class="modal-window" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="settings-modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    金鑰與系統設定
+                </h2>
+                <button class="modal-close-btn" id="close-settings-btn" title="關閉視窗">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="setting-gemini-key">Google Gemini API Key (推薦)</label>
+                    <input type="password" class="form-input" id="setting-gemini-key" placeholder="AIzaSy...">
+                    <div class="form-tip">留空將啟用離線智慧模板公文合成引擎（適用於基本公文格式展示與快速生成）。</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="setting-openai-key">OpenAI API Key</label>
+                    <input type="password" class="form-input" id="setting-openai-key" placeholder="sk-proj-...">
+                    <div class="form-tip">若同時填寫兩個 API Key，系統將以 Gemini 為首選進行呼叫。</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="setting-sysprompt">系統角色定義 (System Prompt)</label>
+                    <textarea class="form-textarea" id="setting-sysprompt" placeholder="你是一位資深的政府機關公文撰寫專家..." style="min-height: 120px; font-size:12.5px;"></textarea>
+                    <div class="form-tip">定義 AI 的語氣與公文格式規範，通常無需修改。</div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="preview-action-pill" id="cancel-settings-btn">取消</button>
+                <button class="submit-btn" id="save-settings-btn" style="background: var(--color-primary);">儲存設定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮動通知容器 -->
+    <div class="toast-container" id="toast-box"></div>
+
+    <!-- 核心邏輯載入 -->
+    <script src="app.js"></script>
+</body>
+</html>
